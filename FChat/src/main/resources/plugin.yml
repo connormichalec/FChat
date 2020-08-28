@@ -1,0 +1,4 @@
+main: michalec.connor.FChat.Bukkit.FChat
+name: FChatBukkitClient
+version: 0.0.0
+author: Connor Michalec
