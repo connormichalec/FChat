@@ -1,9 +1,7 @@
 package michalec.connor.FChat.BungeeCord;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
@@ -15,12 +13,10 @@ import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
 
-import org.bukkit.Bukkit;
 
 import net.md_5.bungee.BungeeCord;
 import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
-import net.md_5.bungee.api.connection.Server;
 import net.md_5.bungee.api.event.ChatEvent;
 import net.md_5.bungee.api.event.PluginMessageEvent;
 import net.md_5.bungee.api.plugin.Listener;
@@ -69,10 +65,20 @@ public class FChat extends Plugin implements Listener {
             if(subChannel.equals("FChat")) {
                 String command = dataIn.readUTF();  //The command, make sure it's handlePlayerColor
                 if(command.equals("handlePlayerColor")) {
+                    String player = dataIn.readUTF();                   //Player that is changing their color
                     String begin = dataIn.readUTF();                    //The beginning tag of the chat sequence
                     String sequence_colorSuffix = dataIn.readUTF();     //Will be appended to each element in the sequence(before each word)
                     String sequence = dataIn.readUTF();                 //Contains a String formatted like this *§c*§b*§a Which will alterate every word the player has at the stars
                     String close = dataIn.readUTF();                    //The ending tag of the chat sequence
+
+                    ArrayList<String> newColor = new ArrayList<String>();
+                    newColor.add(begin);
+                    newColor.add(sequence_colorSuffix);
+                    newColor.add(sequence);
+                    newColor.add(close);
+                    
+                    global_playerChatSequence.put(
+                        this.getProxy().getPlayer(player).getUniqueId(), newColor);
                 }
                 else if(command.equals("requestPlayerChatSequence")) {
                     //Send the global_playerChatSequence to the server that requested it
@@ -147,7 +153,6 @@ public class FChat extends Plugin implements Listener {
 
         byte[] encodedObject = Base64.getEncoder().encode(outByteStream.toByteArray());
         String serializedObject = new String(encodedObject); //Convert the Base64 bytes to UTF
-        System.out.println(serializedObject);
 
                     
         

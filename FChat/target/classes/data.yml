@@ -4,4 +4,4 @@
 #   begin: "§5§k+§r"
 #   sequence_colorRuffix: "§l§o" #will be added to the 
 #   sequence: "§b*§a*§c" #This sequence will be repeated with each word, alternating at the stars, adding the sequence_colorsuffix to the end of the color combo
-#   close: "§5§k§r"
+#   close: "§5§k+§r"

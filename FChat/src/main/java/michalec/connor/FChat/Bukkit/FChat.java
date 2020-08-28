@@ -12,23 +12,25 @@ import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
 
-import org.bukkit.Bukkit;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.player.AsyncPlayerChatEvent;
-import org.bukkit.plugin.RegisteredServiceProvider;
+import org.bukkit.event.player.PlayerChatEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 import org.bukkit.scheduler.BukkitRunnable;
 
-import net.milkbowl.vault.chat.Chat;
 
 public class FChat extends JavaPlugin implements PluginMessageListener, Listener {
-    public Chat chat;
 
     // Local cache of the playerChatSequence
     HashMap<UUID, ArrayList<String>> playerChatSequence = new HashMap<UUID, ArrayList<String>>();
+
+    //Avoid triggering chat event
+    ArrayList<Player> firingChat = new ArrayList<Player>();
 
     @Override
     public void onEnable() {
@@ -43,26 +45,10 @@ public class FChat extends JavaPlugin implements PluginMessageListener, Listener
 
         this.getServer().getPluginManager().registerEvents(this, this);
 
-        // Setup vault chat
-        RegisteredServiceProvider<Chat> chatProvider = Bukkit.getServer().getServicesManager()
-                .getRegistration(Chat.class);
-        this.chat = (Chat) chatProvider.getProvider();
 
-        // Every 5 seconds the local chat sequence will update with the global one, as
-        // well as directly after a player changes chat settings on THIS server
-        updateLocalChatSequenceLoop();
+        //The chat sequence will update every time a player does a chatcolor command or joins the server, NOT every 5 seconds
     }
 
-    private void updateLocalChatSequenceLoop() {
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                updateLocalChatSequence();
-
-                updateLocalChatSequenceLoop(); // recursive
-            }
-        }.runTaskLater(this, 100); // every 100 ticks
-    }
 
     private void updateLocalChatSequence() {
         // Send a request to bungee to get the global player chat sequence list
@@ -107,19 +93,102 @@ public class FChat extends JavaPlugin implements PluginMessageListener, Listener
                     } catch (IOException | ClassNotFoundException e) {
                         e.printStackTrace();
                     }
-                    
 
-
-                    System.out.println(reconstructedObject);
+                    playerChatSequence = reconstructedObject;
                 }
             }
         }
     }
 
     @EventHandler
-    public void onChat(AsyncPlayerChatEvent event) {
-        String format = event.getFormat();
-        System.out.println(format);
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        //Update the playerChatSequence on a player join, due to a weird bug this has to be run a few ticks after the player joins
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                updateLocalChatSequence();
+            }
+        }.runTaskLater(this, 10);
     }
 
+    @EventHandler
+    public void onChat(PlayerChatEvent event) {
+        //Check if that player has their UUID in the playerChatSequence
+        if(playerChatSequence.containsKey(event.getPlayer().getUniqueId())) {
+            if(!firingChat.contains(event.getPlayer())) { //Make sure this isn't the 2nd chat being sent
+                event.setCancelled(true);
+                firingChat.add(event.getPlayer());
+                event.getPlayer().chat(processChat(event.getMessage(), event.getPlayer()));
+            }
+            else {
+                //reset for next chat event
+                firingChat.remove(event.getPlayer());
+            }
+        }
+    }
+
+    private String processChat(String in, Player player) {
+        StringBuilder formatted = new StringBuilder("");    //This is the output
+
+        for(UUID testPlayerUUID : playerChatSequence.keySet()) {
+            //Search for the correct player in the playerchatsequence hashmap
+            if(testPlayerUUID.equals(player.getUniqueId())) {
+                ArrayList<String> targetPlayerChatSequence = playerChatSequence.get(testPlayerUUID);
+
+
+                String sequence_colorSuffix = targetPlayerChatSequence.get(1);        //This will be placed after every item in the sequence
+                String compactSequence = targetPlayerChatSequence.get(2);             //The actual sequence of colors(in a string)
+
+
+                //turn the sequence into an arraylist
+                ArrayList<String> sequence = new ArrayList<String>();
+                //convert the compactSequennce into the sequence arraylist
+                for(String section : compactSequence.split("\\*")) {                  //Split at the star, note the escape character because regex uses the star for zero or more
+                    sequence.add(section);
+                }
+                
+                
+                //Go through each word and apply color formatting to each 
+                String wordFormatted;
+                int sequenceCycleIndex = 0;                                           //this will cycle through the sequence over and over again no matter how many words there are
+                String[] wordArray = in.split(" ");                                   //Split on every whitespace
+
+                for(int wordIndex = 0; wordIndex<wordArray.length; wordIndex++) {     //iterate over the words          
+                    String word = wordArray[wordIndex];                          
+                    wordFormatted = sequence.get(sequenceCycleIndex);                 //cycle through the sequence
+                    wordFormatted += sequence_colorSuffix;                            //add the colorsuffix to the end of the  original color formatting
+                    wordFormatted += word;                                            //add the word
+
+                    //Add a space UNLESS this is the last word in the sequence
+                    if(wordIndex != wordArray.length-1) {
+                        wordFormatted += " ";
+                    }
+
+
+                    formatted.append(wordFormatted);
+
+                    //If the sequenceCycleIndex is at the end restart at the beginning
+                    sequenceCycleIndex += 1;                                          //increment
+                    if(sequenceCycleIndex > sequence.size()-1) {                      //check if its bigger than the total
+                        sequenceCycleIndex = 0;                                       //if so set it to zero
+                    }
+                }
+
+                formatted.insert(0, targetPlayerChatSequence.get(0));                 //insert begin at beginnning of word
+                formatted.append(targetPlayerChatSequence.get(3));                    //Insert end at ending of word
+            }
+        }
+        return(formatted.toString());
+    }
+
+    @Override
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if(command.getName().equalsIgnoreCase("chatcolor")) {
+            //Open the chatcolor inventory
+            return(true);
+        }        
+
+        return(false);
+
+    }
 }

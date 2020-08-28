@@ -2,3 +2,8 @@ main: michalec.connor.FChat.Bukkit.FChat
 name: FChatBukkitClient
 version: 0.0.0
 author: Connor Michalec
+commands:
+  chatcolor:
+    description: "Change your in-game chat color!"
+    usage: "/chatcolor"
+    aliases: [cc, chatcolors, colors, color]
