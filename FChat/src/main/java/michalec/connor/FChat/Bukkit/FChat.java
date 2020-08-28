@@ -12,12 +12,14 @@ import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
 
+import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.player.PlayerChatEvent;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.messaging.PluginMessageListener;
@@ -29,8 +31,6 @@ public class FChat extends JavaPlugin implements PluginMessageListener, Listener
     // Local cache of the playerChatSequence
     HashMap<UUID, ArrayList<String>> playerChatSequence = new HashMap<UUID, ArrayList<String>>();
 
-    //Avoid triggering chat event
-    ArrayList<Player> firingChat = new ArrayList<Player>();
 
     @Override
     public void onEnable() {
@@ -111,19 +111,11 @@ public class FChat extends JavaPlugin implements PluginMessageListener, Listener
         }.runTaskLater(this, 10);
     }
 
-    @EventHandler
-    public void onChat(PlayerChatEvent event) {
+    @EventHandler(priority=EventPriority.HIGH) //priority allows us to bypass essentials filter
+    public void onChat(AsyncPlayerChatEvent event) {
         //Check if that player has their UUID in the playerChatSequence
         if(playerChatSequence.containsKey(event.getPlayer().getUniqueId())) {
-            if(!firingChat.contains(event.getPlayer())) { //Make sure this isn't the 2nd chat being sent
-                event.setCancelled(true);
-                firingChat.add(event.getPlayer());
-                event.getPlayer().chat(processChat(event.getMessage(), event.getPlayer()));
-            }
-            else {
-                //reset for next chat event
-                firingChat.remove(event.getPlayer());
-            }
+                event.setMessage(processChat(event.getMessage(), event.getPlayer()));
         }
     }
 
@@ -181,10 +173,32 @@ public class FChat extends JavaPlugin implements PluginMessageListener, Listener
         return(formatted.toString());
     }
 
+    public void updatePlayersColor(Player player, String begin, String sequence_colorSuffix, String sequence, String close) {
+        ByteArrayDataOutput out = ByteStreams.newDataOutput();
+        out.writeUTF("FChat");
+        out.writeUTF("handlePlayerColor");
+        out.writeUTF(player.getName());
+        out.writeUTF(begin);
+        out.writeUTF(sequence_colorSuffix);
+        out.writeUTF(sequence);
+        out.writeUTF(close);
+
+        this.getServer().sendPluginMessage(this, "BungeeCord", out.toByteArray());
+
+        //Now request an update
+        updateLocalChatSequence();
+    }
+
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if(command.getName().equalsIgnoreCase("chatcolor")) {
-            //Open the chatcolor inventory
+            if(sender.hasPermission("fchat.chatcolor.use")) {
+                //Open the color selection menu
+                updatePlayersColor((Player) sender, "", "§o", "§c*§a", "");
+            }
+            else {
+                sender.sendMessage(ChatColor.RED + "You do not have permission to execute this command!");
+            }
             return(true);
         }        
 
