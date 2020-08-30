@@ -1,4 +1,9 @@
-michalec/connor/FChat/BungeeCord/FChat.class
-michalec/connor/FChat/Bukkit/FChat.class
-michalec/connor/FChat/Bukkit/FChat$1.class
+michalec/connor/FChat/Bukkit/CInterfaceTemplateItems.class
+michalec/connor/FChat/Bukkit/InterfaceManager.class
 michalec/connor/FChat/BungeeCord/DataHandler.class
+michalec/connor/FChat/BungeeCord/FChat.class
+michalec/connor/FChat/Bukkit/CInterfaceItem.class
+michalec/connor/FChat/Bukkit/FChat.class
+michalec/connor/FChat/Bukkit/DataHandler.class
+michalec/connor/FChat/Bukkit/FChat$1.class
+michalec/connor/FChat/Bukkit/CInterface.class

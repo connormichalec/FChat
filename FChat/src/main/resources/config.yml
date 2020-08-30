@@ -11,3 +11,16 @@
 #fchat.chatcolor.format.underline                                    #
 ######################################################################
 ######################################################################
+
+#-> NOTE: Use %LORE% for newlines <-#
+
+ChatColorMenuTitle: "&c&lChat&4&lColor &4&lSelection"
+
+GUI_Buttons:
+  NotEnoughColorsAvailable: "&c&oYou don't have enough colors%LORE%&c&o  available to choose this!"
+  CantUseFormat: "&c&oYou cannot use this format!"
+  ApplyColors: "&a&lApply colors"
+  ResetColors: "&4&lReset colors"
+  Cancel: "&c&lCancel"
+  PreviewText: "WOW! This is some amazing, wonderful, and outstanding text!"
+  ColorFormatButtonInfo: "%LORE%%LORE%&a&lLEFT&a click to add%LORE%&c&lRIGHT&c click to remove"

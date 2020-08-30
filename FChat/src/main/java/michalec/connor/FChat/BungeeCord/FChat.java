@@ -6,6 +6,7 @@ import java.io.ObjectOutputStream;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.UUID;
 
@@ -17,7 +18,6 @@ import com.google.common.io.ByteStreams;
 import net.md_5.bungee.BungeeCord;
 import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
-import net.md_5.bungee.api.event.ChatEvent;
 import net.md_5.bungee.api.event.PluginMessageEvent;
 import net.md_5.bungee.api.plugin.Listener;
 import net.md_5.bungee.api.plugin.Plugin;
@@ -34,16 +34,37 @@ public class FChat extends Plugin implements Listener {
     @Override
     public void onEnable() {
         dataHandler.createDirectoryIfMissing("plugins/FChat");
-        dataHandler.copyTemplateIfMissing("config.yml", "plugins/FChat/config.yml");
         dataHandler.copyTemplateIfMissing("data.yml", "plugins/FChat/data.yml");
-        dataHandler.addFile("config", "plugins/FChat/config.yml");
         dataHandler.addFile("data", "plugins/FChat/data.yml");
         dataHandler.loadFileYAML("data");
-        dataHandler.loadFileYAML("config");
 
         getProxy().getPluginManager().registerListener(this, this);
 
         BungeeCord.getInstance().registerChannel("BungeeCord");
+
+
+        //Load chat sequence from data.yml
+        global_playerChatSequence = loadDataChatSequence();
+        
+    }
+
+    private HashMap<UUID, ArrayList<String>> loadDataChatSequence() {
+        HashMap<UUID, ArrayList<String>> out = new HashMap<UUID, ArrayList<String>>();
+
+        Collection<String> players = dataHandler.getConfigurationSections("data", "PlayerData");
+        for(String player : players) {
+            if(dataHandler.getYAMLBooleanField("data", "PlayerData."+player+".empty") != true) {
+                ArrayList<String> playerData = new ArrayList<String>();
+                playerData.add(dataHandler.getYAMLStringField("data", "PlayerData."+player+".begin"));
+                playerData.add(dataHandler.getYAMLStringField("data", "PlayerData."+player+".sequence_colorSuffix"));
+                playerData.add(dataHandler.getYAMLStringField("data", "PlayerData."+player+".sequence"));
+                playerData.add(dataHandler.getYAMLStringField("data", "PlayerData."+player+".close"));
+
+                out.put(UUID.fromString(player), playerData);
+            }
+        }
+
+        return(out);
     }
 
     @Override
@@ -76,9 +97,36 @@ public class FChat extends Plugin implements Listener {
                     newColor.add(sequence_colorSuffix);
                     newColor.add(sequence);
                     newColor.add(close);
-                    
-                    global_playerChatSequence.put(
-                        this.getProxy().getPlayer(player).getUniqueId(), newColor);
+
+                    UUID playerUUID = this.getProxy().getPlayer(player).getUniqueId();
+
+                    //Check if the arrayList is completely empty, if it is, remove that player from the arrayList(if they are currently in it), and set the empty flag in yaml to true so they wont be added to it on server start
+                    int colorIndex;
+                    for(colorIndex = 0; colorIndex<newColor.size(); colorIndex++) {
+                        if(newColor.get(colorIndex).length()!=0)
+                            break;
+                    }
+;
+                    if(colorIndex != newColor.size()) {
+                        //At least one is filled
+                        global_playerChatSequence.put(
+                            this.getProxy().getPlayer(player).getUniqueId(), newColor);
+
+                        dataHandler.setYAMLField("data", "PlayerData."+playerUUID+".empty", false);
+                        dataHandler.setYAMLField("data", "PlayerData."+playerUUID+".begin", begin);
+                        dataHandler.setYAMLField("data", "PlayerData."+playerUUID+".sequence_colorSuffix", sequence_colorSuffix);
+                        dataHandler.setYAMLField("data", "PlayerData."+playerUUID+".sequence", sequence);
+                        dataHandler.setYAMLField("data", "PlayerData."+playerUUID+".close", close);
+                    }
+                    else {
+                        //It is empty
+                        dataHandler.setYAMLField("data", "PlayerData."+playerUUID+".empty", true);
+                        //Copy the rest of the fields just for neatness, although it wont actually matter because of the empty field
+                        dataHandler.setYAMLField("data", "PlayerData."+playerUUID+".begin", begin);
+                        dataHandler.setYAMLField("data", "PlayerData."+playerUUID+".sequence_colorSuffix", sequence_colorSuffix);
+                        dataHandler.setYAMLField("data", "PlayerData."+playerUUID+".sequence", sequence);
+                        dataHandler.setYAMLField("data", "PlayerData."+playerUUID+".close", close);
+                    }
                 }
                 else if(command.equals("requestPlayerChatSequence")) {
                     //Send the global_playerChatSequence to the server that requested it
@@ -89,21 +137,8 @@ public class FChat extends Plugin implements Listener {
         }
     }
 
-    @EventHandler
-    public void onPlayerChat(ChatEvent event) {
-        /*
-         * This event will format a player's chat, 
-         * given that they have a sequence registered in playerChatSequence.
-         */
+  
 
-        if(event.getSender() instanceof ProxiedPlayer) {
-            //Check if the player has their uuid in the list, if so format their chat message accordingly, then send it back to the bukkit side to force the player to send that message
-            if(true) {
-                //event.setCancelled(true); //cancel the original message
-                sendBukkitPlayerMessage((ProxiedPlayer) event.getSender(), "Test");
-            }
-        }
-    }
 
     public void sendBukkitPlayerMessage(ProxiedPlayer player, String message) {
         //send bukkit the data to force the player to send a message
@@ -136,8 +171,8 @@ public class FChat extends Plugin implements Listener {
         }
 
         /*
-         *we cant actually send a hasmap over a byte array so this is where it encodes/serializes the 
-         *hasmap objectto bytes with help from: https://stackoverflow.com/questions/42812670/how-can-an-arraylist-of-objectsarraylists-be-converted-to-an-array-of-bytes, https://stackoverflow.com/questions/8887197/reliably-convert-any-object-to-string-and-then-back-again/8887244 (2nd answer)
+         * we cant actually send a hasmap over a byte array so this is where it encodes/serializes the 
+         * hashmap object to bytes with help from: https://stackoverflow.com/questions/42812670/how-can-an-arraylist-of-objectsarraylists-be-converted-to-an-array-of-bytes, https://stackoverflow.com/questions/8887197/reliably-convert-any-object-to-string-and-then-back-again/8887244 (2nd answer)
          * It is important to convert the string to base64 first to avoid the corruption that comes with utf-8
          */
 
