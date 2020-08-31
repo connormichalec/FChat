@@ -288,16 +288,20 @@ public class FChat extends JavaPlugin implements PluginMessageListener, Listener
 		return(false);
     }
     
-    //Returns the number at the end of a permission, if no number is found, return 0
+    //Returns the HIGHEST number at the end of a permission, if no number is found, return 0
     public static int getIntPermAttachment(Player player, String permission) {
+        Integer highestPerm = 0;
 		for (PermissionAttachmentInfo perm : player.getEffectivePermissions()) {
 			String thisPermission = perm.getPermission().toLowerCase();
 			if(thisPermission.startsWith(permission)) {
-				String[] split = thisPermission.split("\\.");
-				return(Integer.parseInt(split[split.length-1]));
+                String[] split = thisPermission.split("\\.");
+                int thisNum = Integer.parseInt(split[split.length-1]);
+				if(thisNum>highestPerm) {
+                    highestPerm = thisNum;
+                }
 			}
 		}
-		return(0);
+		return(highestPerm);
     }
     
     //Replaces & with §, mainly used for configs
