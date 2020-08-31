@@ -6,7 +6,7 @@ import java.nio.file.Files;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
-
+import java.util.concurrent.TimeUnit;
 
 import net.md_5.bungee.api.plugin.Plugin;
 import net.md_5.bungee.config.Configuration;
@@ -31,6 +31,49 @@ public class DataHandler {
 	
 	public void addFile(String nameID, String filePath) {
 		files.put(nameID, new File(filePath)); //Add new file to file path hashmap
+	}
+
+	public void update(String nameID) {
+		this.saveYAML(nameID); //save file
+		this.loadFileYAML(nameID); //reload cache
+	}
+	
+	//Update all the files
+	public void update() {
+		for(String nameID : files.keySet()) {
+			this.saveYAML(nameID); //save file
+			this.loadFileYAML(nameID); //reload cache
+		}
+	}
+	
+	public void initializeScheduledUpdate(final int waitSeconds, final String nameID) {
+		
+		plugin.getProxy().getScheduler().schedule(plugin, new Runnable() {
+			@Override
+			public void run() {
+				DataHandler.this.saveYAML(nameID); //save file
+				DataHandler.this.loadFileYAML(nameID); //reload cache
+					
+				//repeat:
+				DataHandler.this.initializeScheduledUpdate(waitSeconds, nameID);
+			}
+		}, waitSeconds, TimeUnit.SECONDS);
+	}
+	
+	//schedule update all the files
+	public void initializeScheduledUpdate(final int waitSeconds) {
+		plugin.getProxy().getScheduler().schedule(plugin, new Runnable() {
+			@Override
+			public void run() {
+				for(String nameID : files.keySet()) {
+					DataHandler.this.saveYAML(nameID); //save file
+					DataHandler.this.loadFileYAML(nameID); //reload cache
+				}
+					
+				//repeat:
+				DataHandler.this.initializeScheduledUpdate(waitSeconds);
+			}
+		}, waitSeconds, TimeUnit.SECONDS);
 	}
 	
 	//Load a specific added file's yaml data
@@ -69,26 +112,18 @@ public class DataHandler {
 	//SET(yaml):
 	public void setYAMLField(String nameID, String YAMLpath, String value) {
 		YAMLData.get(nameID).set(YAMLpath, value);
-		this.saveYAML(nameID); //save file
-		this.loadFileYAML(nameID); //reload cache
 	}
 	
 	public void setYAMLField(String nameID, String YAMLpath, Boolean value) {
 		YAMLData.get(nameID).set(YAMLpath, value);
-		this.saveYAML(nameID); //save file
-		this.loadFileYAML(nameID); //reload cache
 	}
 	
 	public void setYAMLField(String nameID, String YAMLpath, Integer value) {
 		YAMLData.get(nameID).set(YAMLpath, value);
-		this.saveYAML(nameID); //save file
-		this.loadFileYAML(nameID); //reload cache
 	}
 	
 	public void setYAMLField(String nameID, String YAMLpath, List<?> value) { 	
 		YAMLData.get(nameID).set(YAMLpath, value);
-		this.saveYAML(nameID); //save file
-		this.loadFileYAML(nameID); //reload cache
 	}
 	
 	//GET VALUE(yaml):
@@ -116,8 +151,6 @@ public class DataHandler {
 	//DELETE(yaml):
 	public void deleteYAMLPath(String nameID, String YAMLpath) {
 		YAMLData.get(nameID).set(YAMLpath, null);
-		this.saveYAML(nameID); //save file
-		this.loadFileYAML(nameID); //reload cache
 	}
 	
 	//UTILITY, does not require you to add the file first

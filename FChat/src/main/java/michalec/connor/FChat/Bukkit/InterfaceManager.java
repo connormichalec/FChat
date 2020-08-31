@@ -12,19 +12,30 @@ import org.bukkit.event.inventory.InventoryType;
 public class InterfaceManager {
     public static ArrayList<CInterface> runningInterfaces = new ArrayList<CInterface>();
 
-    public static void processInventoryEvent(InventoryClickEvent event) {
+    public static void processInventoryEvent(InventoryClickEvent event, FChat main) {
         //Check to see if this event is on a color select interface, if it is deal with it.
-        Player player = (Player) event.getWhoClicked();
+        final Player player = (Player) event.getWhoClicked();
 
         //If that palyer has a runningInterface
-        for(CInterface testInterface : runningInterfaces) {
+        for(int interfaceIterator=0; interfaceIterator<runningInterfaces.size(); interfaceIterator++) {
+            CInterface testInterface = runningInterfaces.get(interfaceIterator);
             if(testInterface.getAssociatedPlayer().getName() == player.getName()) {
                 //Ok we found that this is indeed a Color selection menu interface, now just check if the player is clicking in their menu or in the colorinterface
                 if(event.getClickedInventory()!=null) {
                     if(event.getClickedInventory().getType()!=InventoryType.PLAYER) {
                         //User clicked on something inside the color menu
+                        
                         event.setCancelled(true);
-                        testInterface.processUserUpdate(event);
+                        if(!event.isShiftClick()) {
+                            if(testInterface.processUserUpdate(event, main)) {
+                                event.getWhoClicked().closeInventory();
+                                main.updateLocalChatSequence();
+                                interfaceIterator--;
+                            }
+                        }
+                        else {
+                            //if hes shift clicking cancel it to prevent a bug where you can take items
+                        }
                     }
                 }
                 else {

@@ -38,6 +38,8 @@ public class FChat extends Plugin implements Listener {
         dataHandler.addFile("data", "plugins/FChat/data.yml");
         dataHandler.loadFileYAML("data");
 
+        dataHandler.initializeScheduledUpdate(20);
+
         getProxy().getPluginManager().registerListener(this, this);
 
         BungeeCord.getInstance().registerChannel("BungeeCord");
@@ -119,6 +121,9 @@ public class FChat extends Plugin implements Listener {
                         dataHandler.setYAMLField("data", "PlayerData."+playerUUID+".close", close);
                     }
                     else {
+                        global_playerChatSequence.put(
+                            this.getProxy().getPlayer(player).getUniqueId(), newColor);
+                            
                         //It is empty
                         dataHandler.setYAMLField("data", "PlayerData."+playerUUID+".empty", true);
                         //Copy the rest of the fields just for neatness, although it wont actually matter because of the empty field

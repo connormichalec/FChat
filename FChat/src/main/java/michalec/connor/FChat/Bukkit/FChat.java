@@ -45,8 +45,6 @@ public class FChat extends JavaPlugin implements PluginMessageListener, Listener
         dataHandler.addFile("config", "plugins/FChat_Bukkit/config.yml");
         dataHandler.loadFileYAML("config");
 
-        CInterfaceTemplateItems.initializeData(dataHandler);
-
         /*
          * Register the Plugin Messaging channels for bukkit for channel BungeeCord,
          * note that everything for this plugin should be sent on the FChat subchannel.
@@ -62,7 +60,7 @@ public class FChat extends JavaPlugin implements PluginMessageListener, Listener
     }
 
 
-    private void updateLocalChatSequence() {
+    public void updateLocalChatSequence() {
         // Send a request to bungee to get the global player chat sequence list
         ByteArrayDataOutput out = ByteStreams.newDataOutput();
         out.writeUTF("FChat");
@@ -139,7 +137,7 @@ public class FChat extends JavaPlugin implements PluginMessageListener, Listener
     @EventHandler
     public void playerInteractMenu(InventoryClickEvent event) {
         //Send to IntefaceManager
-        InterfaceManager.processInventoryEvent(event);
+        InterfaceManager.processInventoryEvent(event, this);
     }
 
     public static String processChat(String in, Player player, HashMap<UUID, ArrayList<String>> playerChatSequence) {

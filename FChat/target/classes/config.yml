@@ -22,5 +22,5 @@ GUI_Buttons:
   ApplyColors: "&a&lApply colors"
   ResetColors: "&4&lReset colors"
   Cancel: "&c&lCancel"
-  PreviewText: "WOW! This is some amazing, wonderful, and outstanding text!"
+  PreviewText: "WOW this is a nice pick of colors!"
   ColorFormatButtonInfo: "%LORE%%LORE%&a&lLEFT&a click to add%LORE%&c&lRIGHT&c click to remove"

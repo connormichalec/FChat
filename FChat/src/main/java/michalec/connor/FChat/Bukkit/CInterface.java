@@ -14,6 +14,7 @@ import org.bukkit.inventory.ItemStack;
 //The reason a lot of this code works: https://www.geeksforgeeks.org/g-fact-31-java-is-strictly-pass-by-value/, https://stackoverflow.com/questions/30444722/static-variable-pass-by-reference-in-java
 
 public class CInterface {
+    private CInterfaceTemplateItems cInterfaceTemplateItems;
     
     private Player associatedPlayer;
     private DataHandler dataHandler;
@@ -35,41 +36,50 @@ public class CInterface {
     /*                                              */ 
 
     public CInterface(Player player, DataHandler dataHandler, HashMap<UUID, ArrayList<String>> playerChatSequenceCache) {
+        cInterfaceTemplateItems = new CInterfaceTemplateItems();
 
+        cInterfaceTemplateItems.initializeData(dataHandler);
 
         associatedPlayer = player;
 
         this.dataHandler = dataHandler;
 
 
-        
-        for(int i=0; i<4; i++) 
-            format.add(""); //get format ready for begin, sequence_colorSuffix, sequence, and close
 
         //Update to reflect whats already stored previously in playerChatSequence, if the player does have data already in there
-        if(playerChatSequenceCache.containsKey(player.getUniqueId()))
-            format = playerChatSequenceCache.get(player.getUniqueId());
+        if(playerChatSequenceCache.containsKey(player.getUniqueId())) {
+            format.addAll(playerChatSequenceCache.get(player.getUniqueId()));
+        }
+        else {
+            for(int i=0; i<4; i++) 
+                format.add(""); //empty for begin, sequence_colorSuffix, sequence, and close
+        }
 
         /*Update the runtime vars to reflect the current format*/
         
         //COLORS
-        currentlyUsedColors = format.get(2).replaceAll("§", "").split("\\*").length;            //note the Regex escape
+        if(format.get(2).length() == 0) {
+            currentlyUsedColors = 0;
+        }
+        else {
+            currentlyUsedColors = format.get(2).replaceAll("§", "").split("\\*").length;            //note the Regex escape
+        }
 
 
         //FORMATTING
         //Magic format
         //Check to see if begin and close match §5§k+§r
         if(format.get(0).equals("§5§k+§r") && format.get(3).equals("§5§k+§r")) 
-            CInterfaceTemplateItems.magicFormat.setSelection(true);
+            cInterfaceTemplateItems.magicFormat.setSelection(true);
         
         //Other formats
         for(String formatCode : format.get(1).split("§")) {
             if(formatCode.equals("l"))
-                CInterfaceTemplateItems.boldFormat.setSelection(true);
+                cInterfaceTemplateItems.boldFormat.setSelection(true);
             else if(formatCode.equals("n"))
-                CInterfaceTemplateItems.underlineFormat.setSelection(true);
+                cInterfaceTemplateItems.underlineFormat.setSelection(true);
             else if(formatCode.equals("o"))
-                CInterfaceTemplateItems.italicFormat.setSelection(true);;
+                cInterfaceTemplateItems.italicFormat.setSelection(true);;
         }
 
         
@@ -96,62 +106,121 @@ public class CInterface {
         initialInventoryCall();
     }
 
-    public void processUserUpdate(InventoryClickEvent event) {
+    public boolean processUserUpdate(InventoryClickEvent event, FChat main) {
         //Called when a user interacts with this interface
         if(event.isLeftClick()) {
             //This is for adding color/formats and applying state changes
             //If it can be added, update the interface
 
             //TODO: remove having to convert allcolorsavail and allformatsavail to lists twice
-            CInterfaceItem clickedInterfaceItem = CInterfaceTemplateItems.getCInterfaceItem(event.getSlot());
+            CInterfaceItem clickedInterfaceItem = cInterfaceTemplateItems.getCInterfaceItem(event.getSlot());
             if(clickedInterfaceItem != null) {                                                                      //make sure its a valid menu object(not filler)
-                if(Arrays.asList(CInterfaceTemplateItems.allColorsAvailItems).contains(clickedInterfaceItem)
-                 || Arrays.asList(CInterfaceTemplateItems.allFormatsAvailItems).contains(clickedInterfaceItem))     //make sure its a color/format
-                if(!clickedInterfaceItem.isCurrentlySelected()) {                                                   //We can only add a color/format that is currently not selected
-                    if(Arrays.asList(CInterfaceTemplateItems.allColorsAvailItems).contains(clickedInterfaceItem)) { //is it a color or format
-                        //color
-                        if(currentlyUsedColors<maxColors) {                                                         //If there is actually colors available to add
-                            currentlyUsedColors++;
-                            format = addColorCodeToSequence(format, clickedInterfaceItem.getAssociatedColorCode());
-                            clickedInterfaceItem.setSelection(true);
+                if(Arrays.asList(cInterfaceTemplateItems.allColorsAvailItems).contains(clickedInterfaceItem)
+                 || Arrays.asList(cInterfaceTemplateItems.allFormatsAvailItems).contains(clickedInterfaceItem)) {     //make sure its a color/format
+                    if(!clickedInterfaceItem.isCurrentlySelected()) {                                                   //We can only add a color/format that is currently not selected
+                        if(Arrays.asList(cInterfaceTemplateItems.allColorsAvailItems).contains(clickedInterfaceItem)) { //is it a color or format
+                            //color
+                            if(currentlyUsedColors<maxColors) {                                                         //If there is actually colors available to add
+                                currentlyUsedColors++;
+                                format = addColorCodeToSequence(format, clickedInterfaceItem.getAssociatedColorCode());
+                                clickedInterfaceItem.setSelection(true);
+                            }
                         }
-                    }
-                    else {
-                        //format
-                        clickedInterfaceItem.setSelection(true);
-                    }
+                        else {
+                            //format
+                            if(clickedInterfaceItem.getAssociatedColorCode().equals("§5§k+§r") && canUseMagic) {
+                                //magic
+                                format.set(0, format.get(0)+"§5§k+§r");
+                                format.set(3, format.get(3)+"§5§k+§r");
+                                clickedInterfaceItem.setSelection(true);
+                            }
+                            else {
+                                if(clickedInterfaceItem.getAssociatedColorCode().equals("l") && canUseBold) {
+                                    format = addFormatCodeToSequence(format, "l");
+                                    clickedInterfaceItem.setSelection(true);
+                                }
+                                else if(clickedInterfaceItem.getAssociatedColorCode().equals("o") && canUseItalic) {
+                                    format = addFormatCodeToSequence(format, "o");
+                                    clickedInterfaceItem.setSelection(true);
+                                }
+                                else if(clickedInterfaceItem.getAssociatedColorCode().equals("n") && canUseUnderline) {
+                                    format = addFormatCodeToSequence(format, "n");
+                                    clickedInterfaceItem.setSelection(true);
+                                }
+                            }
+                        }
 
+                        updateInterface();
+                    }
+                }
+                else {
+                    //Ok it's another button
+                    if(clickedInterfaceItem.getSlot() == cInterfaceTemplateItems.reset.getSlot()) {
+                        //If it's the reset button
+                        resetButton();
+                    }
+                    else if(clickedInterfaceItem.getSlot() == cInterfaceTemplateItems.cancel.getSlot()) {
+                        //If it's the cancel button
+                        return(true); //exit
+                    }
+                    else if(clickedInterfaceItem.getSlot() == cInterfaceTemplateItems.applyChanges.getSlot()) {
+                        //If it's the apply changes button
+                        main.updatePlayersColor((Player) event.getWhoClicked(), format.get(0), format.get(1), format.get(2), format.get(3));
+                        return(true); //exit
+                    }
                     updateInterface();
                 }
             }
+
         }
         else {
             //This is for removing color/formats
             //If it can be removed, update the interface
 
             //TODO: remove having to convert allcolorsavail and allformatsavail to lists twice
-            CInterfaceItem clickedInterfaceItem = CInterfaceTemplateItems.getCInterfaceItem(event.getSlot());
+            CInterfaceItem clickedInterfaceItem = cInterfaceTemplateItems.getCInterfaceItem(event.getSlot());
             if(clickedInterfaceItem != null) {                                                                          //make sure its a valid menu object(not filler)
-                if(Arrays.asList(CInterfaceTemplateItems.allColorsAvailItems).contains(clickedInterfaceItem)
-                 || Arrays.asList(CInterfaceTemplateItems.allFormatsAvailItems).contains(clickedInterfaceItem))     //make sure its a color/formatt
-                if(clickedInterfaceItem.isCurrentlySelected()) {                                                        //We can only remove a color/format that is currently selected
-                    if(Arrays.asList(CInterfaceTemplateItems.allColorsAvailItems).contains(clickedInterfaceItem)) {     //is it a color or format
-                        //color
-                        currentlyUsedColors--;
-                        format = removeColorCodeFromSequence(format, clickedInterfaceItem.getAssociatedColorCode());
-                        clickedInterfaceItem.setSelection(false);
-                    }
-                    else {
-                        //format
-                        clickedInterfaceItem.setSelection(false);
-                    }
+                if(Arrays.asList(cInterfaceTemplateItems.allColorsAvailItems).contains(clickedInterfaceItem)
+                 || Arrays.asList(cInterfaceTemplateItems.allFormatsAvailItems).contains(clickedInterfaceItem)) {       //make sure its a color/formatt
+                    if(clickedInterfaceItem.isCurrentlySelected()) {                                                        //We can only remove a color/format that is currently selected
+                        if(Arrays.asList(cInterfaceTemplateItems.allColorsAvailItems).contains(clickedInterfaceItem)) {     //is it a color or format
+                            //color
+                            currentlyUsedColors--;
+                            format = removeColorCodeFromSequence(format, clickedInterfaceItem.getAssociatedColorCode());
+                            clickedInterfaceItem.setSelection(false);
+                        }
+                        else {
+                            //format - permission check is unnecessary but im doing it anyway
+                            if(clickedInterfaceItem.getAssociatedColorCode().equals("§5§k+§r") && canUseMagic) {
+                                //magic
+                                format.set(0, format.get(0).replaceAll("§5§k\\+§r", ""));//NOTE REGEX ESCAPE
+                                format.set(3, format.get(3).replaceAll("§5§k\\+§r", ""));//NOTE REGEX ESCAPE;
+                                clickedInterfaceItem.setSelection(false);
+                            }
+                            else {
+                                if(clickedInterfaceItem.getAssociatedColorCode().equals("l") && canUseBold) {
+                                    format = removeFormatCodeFromSequence(format, "l");
+                                    clickedInterfaceItem.setSelection(false);
+                                }
+                                else if(clickedInterfaceItem.getAssociatedColorCode().equals("o") && canUseItalic) {
+                                    format = removeFormatCodeFromSequence(format, "o");
+                                    clickedInterfaceItem.setSelection(false);
+                                }
+                                else if(clickedInterfaceItem.getAssociatedColorCode().equals("n") && canUseUnderline) {
+                                    format = removeFormatCodeFromSequence(format, "n");
+                                    clickedInterfaceItem.setSelection(false);
+                                }
+                            }
+                        }
 
-                    updateInterface();
+                        updateInterface();
+                    }
                 }
             }
         }
 
-        System.out.println(format);
+        return(false);  //dont exit
+
 
     }
 
@@ -160,23 +229,23 @@ public class CInterface {
 
         //SET COLORS
         if(currentlyUsedColors<maxColors) {
-            for(CInterfaceItem interfaceItem : CInterfaceTemplateItems.allColorsAvailItems) {
+            for(CInterfaceItem interfaceItem : cInterfaceTemplateItems.allColorsAvailItems) {
                 interfaceInventory.setItem(interfaceItem.getSlot(), interfaceItem.getItem());
             }
         }
         else {
-            for(CInterfaceItem interfaceItem : CInterfaceTemplateItems.noMoreColorsAvailItems) {
+            for(CInterfaceItem interfaceItem : cInterfaceTemplateItems.noMoreColorsAvailItems) {
                 interfaceInventory.setItem(interfaceItem.getSlot(), interfaceItem.getItem());
             }
         }
         //add enchant glow to the colors that are currently being used(removing glow from ones that dont), then add them to the itnerface where they are suppsoed to be:
-        for(CInterfaceItem item : CInterfaceTemplateItems.allColorsAvailItems) {
+        for(CInterfaceItem item : cInterfaceTemplateItems.allColorsAvailItems) {
             if(item.isCurrentlySelected()) {
-                CInterfaceTemplateItems.addMetaEnchantGlow(item);
+                cInterfaceTemplateItems.addMetaEnchantGlow(item);
                 interfaceInventory.setItem(item.getSlot(), item.getItem());
             }
             else {
-                CInterfaceTemplateItems.removeMetaEnchantGlow(item);
+                cInterfaceTemplateItems.removeMetaEnchantGlow(item);
                 //Only set the unselected item if there is more colors available
                 if(currentlyUsedColors<maxColors)
                     interfaceInventory.setItem(item.getSlot(), item.getItem());
@@ -185,51 +254,51 @@ public class CInterface {
         
         /*SET FORMATS    TODO: Make a method to make this process shorter*/
         if(canUseItalic) {
-            if(CInterfaceTemplateItems.italicFormat.isCurrentlySelected()) {
-                CInterfaceTemplateItems.addMetaEnchantGlow(CInterfaceTemplateItems.italicFormat);
+            if(cInterfaceTemplateItems.italicFormat.isCurrentlySelected()) {
+                cInterfaceTemplateItems.addMetaEnchantGlow(cInterfaceTemplateItems.italicFormat);
             }
             else {
-                CInterfaceTemplateItems.removeMetaEnchantGlow(CInterfaceTemplateItems.italicFormat);                
+                cInterfaceTemplateItems.removeMetaEnchantGlow(cInterfaceTemplateItems.italicFormat);                
             }
 
-            interfaceInventory.setItem(CInterfaceTemplateItems.italicFormat.getSlot(), CInterfaceTemplateItems.italicFormat.getItem());
+            interfaceInventory.setItem(cInterfaceTemplateItems.italicFormat.getSlot(), cInterfaceTemplateItems.italicFormat.getItem());
         }
 
         if(canUseMagic) {
-            if(CInterfaceTemplateItems.magicFormat.isCurrentlySelected()) {
-                CInterfaceTemplateItems.addMetaEnchantGlow(CInterfaceTemplateItems.magicFormat);
+            if(cInterfaceTemplateItems.magicFormat.isCurrentlySelected()) {
+                cInterfaceTemplateItems.addMetaEnchantGlow(cInterfaceTemplateItems.magicFormat);
             }
             else {
-                CInterfaceTemplateItems.removeMetaEnchantGlow(CInterfaceTemplateItems.magicFormat);
+                cInterfaceTemplateItems.removeMetaEnchantGlow(cInterfaceTemplateItems.magicFormat);
             }
 
-            interfaceInventory.setItem(CInterfaceTemplateItems.magicFormat.getSlot(), CInterfaceTemplateItems.magicFormat.getItem());
+            interfaceInventory.setItem(cInterfaceTemplateItems.magicFormat.getSlot(), cInterfaceTemplateItems.magicFormat.getItem());
         }
 
         if(canUseBold) {
-            if(CInterfaceTemplateItems.boldFormat.isCurrentlySelected()) {
-                CInterfaceTemplateItems.addMetaEnchantGlow(CInterfaceTemplateItems.boldFormat);
+            if(cInterfaceTemplateItems.boldFormat.isCurrentlySelected()) {
+                cInterfaceTemplateItems.addMetaEnchantGlow(cInterfaceTemplateItems.boldFormat);
             }
             else {
-                CInterfaceTemplateItems.removeMetaEnchantGlow(CInterfaceTemplateItems.boldFormat);
+                cInterfaceTemplateItems.removeMetaEnchantGlow(cInterfaceTemplateItems.boldFormat);
             }
 
-            interfaceInventory.setItem(CInterfaceTemplateItems.boldFormat.getSlot(), CInterfaceTemplateItems.boldFormat.getItem());
+            interfaceInventory.setItem(cInterfaceTemplateItems.boldFormat.getSlot(), cInterfaceTemplateItems.boldFormat.getItem());
         }
 
         if(canUseUnderline) {
-            if(CInterfaceTemplateItems.underlineFormat.isCurrentlySelected()) {
-                CInterfaceTemplateItems.addMetaEnchantGlow(CInterfaceTemplateItems.underlineFormat);
+            if(cInterfaceTemplateItems.underlineFormat.isCurrentlySelected()) {
+                cInterfaceTemplateItems.addMetaEnchantGlow(cInterfaceTemplateItems.underlineFormat);
             }
             else {
-                CInterfaceTemplateItems.removeMetaEnchantGlow(CInterfaceTemplateItems.underlineFormat);
+                cInterfaceTemplateItems.removeMetaEnchantGlow(cInterfaceTemplateItems.underlineFormat);
             }
 
-            interfaceInventory.setItem(CInterfaceTemplateItems.underlineFormat.getSlot(), CInterfaceTemplateItems.underlineFormat.getItem());
+            interfaceInventory.setItem(cInterfaceTemplateItems.underlineFormat.getSlot(), cInterfaceTemplateItems.underlineFormat.getItem());
         }
         /*              */
 
-        interfaceInventory.setItem(CInterfaceTemplateItems.preview.getSlot(), CInterfaceTemplateItems.setMetaTitle(CInterfaceTemplateItems.preview,
+        interfaceInventory.setItem(cInterfaceTemplateItems.preview.getSlot(), cInterfaceTemplateItems.setMetaTitle(cInterfaceTemplateItems.preview,
             "&r"+FChat.processChat(dataHandler.getYAMLStringField("config", "GUI_Buttons.PreviewText"), format)).getItem());
     }
     
@@ -237,84 +306,84 @@ public class CInterface {
         //This is will get called once when the inventory needs to open, and will construct the inventory, other events by the user will cause the inventroy to get edited
 
         //SET STATE NAVIGATION
-        for(CInterfaceItem interfaceItem : CInterfaceTemplateItems.stateSaveItems) {
+        for(CInterfaceItem interfaceItem : cInterfaceTemplateItems.stateSaveItems) {
             interfaceInventory.setItem(interfaceItem.getSlot(), interfaceItem.getItem());
         }
 
         //FILLER
-        for(CInterfaceItem interfaceItem : CInterfaceTemplateItems.fillerItems) {
+        for(CInterfaceItem interfaceItem : cInterfaceTemplateItems.fillerItems) {
             interfaceInventory.setItem(interfaceItem.getSlot(), interfaceItem.getItem());
         }
 
         //SET COLORS
         if(currentlyUsedColors<maxColors) {
-            for(CInterfaceItem interfaceItem : CInterfaceTemplateItems.allColorsAvailItems) {
+            for(CInterfaceItem interfaceItem : cInterfaceTemplateItems.allColorsAvailItems) {
                 interfaceInventory.setItem(interfaceItem.getSlot(), interfaceItem.getItem());
             }
         }
         else {
-            for(CInterfaceItem interfaceItem : CInterfaceTemplateItems.noMoreColorsAvailItems) {
+            for(CInterfaceItem interfaceItem : cInterfaceTemplateItems.noMoreColorsAvailItems) {
                 interfaceInventory.setItem(interfaceItem.getSlot(), interfaceItem.getItem());
             }
         }
         //add enchant glow to the colors that are currently being used, then add them to the itnerface where they are suppsoed to be:
-        ArrayList<CInterfaceItem> usedColors = CInterfaceTemplateItems.setCInterfaceItemColorsCurrentlyBeingUsed(format.get(2));
+        ArrayList<CInterfaceItem> usedColors = cInterfaceTemplateItems.setCInterfaceItemColorsCurrentlyBeingUsed(format.get(2));
         for(CInterfaceItem item : usedColors) {
-            CInterfaceTemplateItems.addMetaEnchantGlow(item);
+            cInterfaceTemplateItems.addMetaEnchantGlow(item);
             interfaceInventory.setItem(item.getSlot(), item.getItem());
         }
         
         /*SET FORMATS    TODO: Make a method to make this process shorter*/
         if(canUseItalic) {
-            if(CInterfaceTemplateItems.italicFormat.isCurrentlySelected()) {
-                CInterfaceTemplateItems.italicFormat.setSelection(true);
-                CInterfaceTemplateItems.addMetaEnchantGlow(CInterfaceTemplateItems.italicFormat);
+            if(cInterfaceTemplateItems.italicFormat.isCurrentlySelected()) {
+                cInterfaceTemplateItems.italicFormat.setSelection(true);
+                cInterfaceTemplateItems.addMetaEnchantGlow(cInterfaceTemplateItems.italicFormat);
             }
 
-            interfaceInventory.setItem(CInterfaceTemplateItems.italicFormat.getSlot(), CInterfaceTemplateItems.italicFormat.getItem());
+            interfaceInventory.setItem(cInterfaceTemplateItems.italicFormat.getSlot(), cInterfaceTemplateItems.italicFormat.getItem());
         }
         else {
-            interfaceInventory = (cantUseFormatItem(interfaceInventory, CInterfaceTemplateItems.italicFormat));
+            interfaceInventory = (cantUseFormatItem(interfaceInventory, cInterfaceTemplateItems.italicFormat));
         }
 
         if(canUseBold) {
-            if(CInterfaceTemplateItems.boldFormat.isCurrentlySelected()) {
-                CInterfaceTemplateItems.boldFormat.setSelection(true);
-                CInterfaceTemplateItems.addMetaEnchantGlow(CInterfaceTemplateItems.boldFormat);
+            if(cInterfaceTemplateItems.boldFormat.isCurrentlySelected()) {
+                cInterfaceTemplateItems.boldFormat.setSelection(true);
+                cInterfaceTemplateItems.addMetaEnchantGlow(cInterfaceTemplateItems.boldFormat);
             }
 
-            interfaceInventory.setItem(CInterfaceTemplateItems.boldFormat.getSlot(), CInterfaceTemplateItems.boldFormat.getItem());
+            interfaceInventory.setItem(cInterfaceTemplateItems.boldFormat.getSlot(), cInterfaceTemplateItems.boldFormat.getItem());
         }
         else {
-            interfaceInventory = (cantUseFormatItem(interfaceInventory, CInterfaceTemplateItems.boldFormat));
+            interfaceInventory = (cantUseFormatItem(interfaceInventory, cInterfaceTemplateItems.boldFormat));
         }
 
         if(canUseMagic) {
-            if(CInterfaceTemplateItems.magicFormat.isCurrentlySelected()) {
-                CInterfaceTemplateItems.magicFormat.setSelection(true);
-                CInterfaceTemplateItems.addMetaEnchantGlow(CInterfaceTemplateItems.magicFormat);
+            if(cInterfaceTemplateItems.magicFormat.isCurrentlySelected()) {
+                cInterfaceTemplateItems.magicFormat.setSelection(true);
+                cInterfaceTemplateItems.addMetaEnchantGlow(cInterfaceTemplateItems.magicFormat);
             }
 
-            interfaceInventory.setItem(CInterfaceTemplateItems.magicFormat.getSlot(), CInterfaceTemplateItems.magicFormat.getItem());
+            interfaceInventory.setItem(cInterfaceTemplateItems.magicFormat.getSlot(), cInterfaceTemplateItems.magicFormat.getItem());
         }
         else {
-            interfaceInventory = (cantUseFormatItem(interfaceInventory, CInterfaceTemplateItems.magicFormat));
+            interfaceInventory = (cantUseFormatItem(interfaceInventory, cInterfaceTemplateItems.magicFormat));
         }
 
         if(canUseUnderline) {
-            if(CInterfaceTemplateItems.underlineFormat.isCurrentlySelected()) {
-                CInterfaceTemplateItems.underlineFormat.setSelection(true);
-                CInterfaceTemplateItems.addMetaEnchantGlow(CInterfaceTemplateItems.underlineFormat);
+            if(cInterfaceTemplateItems.underlineFormat.isCurrentlySelected()) {
+                cInterfaceTemplateItems.underlineFormat.setSelection(true);
+                cInterfaceTemplateItems.addMetaEnchantGlow(cInterfaceTemplateItems.underlineFormat);
             }
 
-            interfaceInventory.setItem(CInterfaceTemplateItems.underlineFormat.getSlot(), CInterfaceTemplateItems.underlineFormat.getItem());
+            interfaceInventory.setItem(cInterfaceTemplateItems.underlineFormat.getSlot(), cInterfaceTemplateItems.underlineFormat.getItem());
         }
         else {
-            interfaceInventory = (cantUseFormatItem(interfaceInventory, CInterfaceTemplateItems.underlineFormat));
+            interfaceInventory = (cantUseFormatItem(interfaceInventory, cInterfaceTemplateItems.underlineFormat));
         }
         /*              */
 
-        interfaceInventory.setItem(CInterfaceTemplateItems.preview.getSlot(), CInterfaceTemplateItems.setMetaTitle(CInterfaceTemplateItems.preview,
+        interfaceInventory.setItem(cInterfaceTemplateItems.preview.getSlot(), cInterfaceTemplateItems.setMetaTitle(cInterfaceTemplateItems.preview,
             "&r"+FChat.processChat(dataHandler.getYAMLStringField("config", "GUI_Buttons.PreviewText"), format)).getItem());
 
         associatedPlayer.openInventory(interfaceInventory);
@@ -327,9 +396,9 @@ public class CInterface {
     private void resetButton() {
         currentlyUsedColors = 0;
 
-        for(CInterfaceItem item : CInterfaceTemplateItems.allColorsAvailItems)
+        for(CInterfaceItem item : cInterfaceTemplateItems.allColorsAvailItems)
             item.setSelection(false);
-        for(CInterfaceItem item : CInterfaceTemplateItems.allFormatsAvailItems)
+        for(CInterfaceItem item : cInterfaceTemplateItems.allFormatsAvailItems)
             item.setSelection(false);
 
         for(int i = 0; i<format.size(); i++)
@@ -337,7 +406,7 @@ public class CInterface {
     }
 
     private Inventory cantUseFormatItem(Inventory inventoryIn, CInterfaceItem original) {
-        ItemStack item = CInterfaceTemplateItems.cloneInterfaceItem(CInterfaceTemplateItems.cantUseFormatBaseItem, original.getSlot()).getItem();
+        ItemStack item = cInterfaceTemplateItems.cloneInterfaceItem(cInterfaceTemplateItems.cantUseFormatBaseItem, original.getSlot()).getItem();
         Inventory inventoryOut = inventoryIn;
         inventoryOut.setItem(original.getSlot(), item);
         return(inventoryOut);
@@ -348,8 +417,18 @@ public class CInterface {
         return(in);
     }
 
+    private ArrayList<String> removeFormatCodeFromSequence(ArrayList<String> in, String removal) {
+        in.set(1, in.get(1).replaceAll("§"+removal, ""));
+        return(in);
+    }
+
     private ArrayList<String> addColorCodeToSequence(ArrayList<String> in, String add) {
         in.set(2, in.get(2)+"§"+add+"*");
+        return(in);
+    }
+
+    private ArrayList<String> addFormatCodeToSequence(ArrayList<String> in, String add) {
+        in.set(1, format.get(1)+"§"+add);
         return(in);
     }
 
