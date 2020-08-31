@@ -164,8 +164,13 @@ public class CInterface {
                         return(true); //exit
                     }
                     else if(clickedInterfaceItem.getSlot() == cInterfaceTemplateItems.applyChanges.getSlot()) {
+                        Player player = (Player) event.getWhoClicked();
                         //If it's the apply changes button
-                        main.updatePlayersColor((Player) event.getWhoClicked(), format.get(0), format.get(1), format.get(2), format.get(3));
+                        main.updatePlayersColor(player, format.get(0), format.get(1), format.get(2), format.get(3));
+                        if(dataHandler.getYAMLStringField("config", "MessageFeedBack_stamp").length()!=0 && dataHandler.getYAMLStringField("config", "MessageFeedBack").length() !=0) {
+                            player.sendMessage(FChat.newlineFormat(
+                                FChat.colFormat(dataHandler.getYAMLStringField("config", "MessageFeedBack_stamp"))+FChat.processChat(dataHandler.getYAMLStringField("config", "MessageFeedBack"), format)));
+                        }
                         return(true); //exit
                     }
                     updateInterface();

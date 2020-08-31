@@ -1,6 +1,6 @@
 main: michalec.connor.FChat.Bukkit.FChat
 name: FChatBukkitClient
-version: 0.0.1
+version: 0.0.2
 author: Connor Michalec
 api-version: 1.13
 commands:

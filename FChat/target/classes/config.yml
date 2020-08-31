@@ -23,4 +23,7 @@ GUI_Buttons:
   ResetColors: "&4&lReset colors"
   Cancel: "&c&lCancel"
   PreviewText: "WOW this is a nice pick of colors!"
-  ColorFormatButtonInfo: "%LORE%%LORE%&a&lLEFT&a click to add%LORE%&c&lRIGHT&c click to remove"
+  ColorFormatButtonInfo: "%LORE%%LORE%&a&lLEFT&a click to add%LORE"
+  
+MessageFeedBack_stamp: "&a&lUPDATED CHATCOLOR: &r"
+MessageFeedBack: "WOW this is a nice pick of colors!"
