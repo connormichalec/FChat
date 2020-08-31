@@ -76,10 +76,10 @@ public class CInterfaceTemplateItems {
         new ItemStack(Material.PINK_CONCRETE), 16);                              //For pink chatcolor(d)
 
     public CInterfaceItem yellowColor = new CInterfaceItem("e",
-        new ItemStack(Material.YELLOW_CONCRETE), 0);                            //For yellow chatcolor(e)
+        new ItemStack(Material.YELLOW_CONCRETE), 8);                            //For yellow chatcolor(e)
 
     public CInterfaceItem whiteColor = new CInterfaceItem("f",
-        new ItemStack(Material.WHITE_CONCRETE), 8);                            //For whitechatcolor(f)
+        new ItemStack(Material.WHITE_CONCRETE), 0);                            //For whitechatcolor(f)
 
     public CInterfaceItem magicFormat = new CInterfaceItem("§5§k+§r",
         new ItemStack(Material.CHORUS_PLANT), 37);                               //For magic format(k)
