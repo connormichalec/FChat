@@ -7,4 +7,4 @@ commands:
   chatcolor:
     description: "Change your in-game chat color!"
     usage: "/chatcolor"
-    aliases: [cc, chatcolors, colors, color]
+    aliases: [cc, chatcolors, colors, color, ccs]
